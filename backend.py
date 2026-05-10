@@ -1,8 +1,10 @@
+import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 import psycopg2
 
 app = Flask(__name__)
+# DÔLEŽITÉ: CORS povolí tvojmu webu na GitHub Pages sťahovať dáta
 CORS(app)
 
 def get_db_connection():
@@ -20,24 +22,32 @@ def home():
 
 @app.route('/api')
 def get_all_students():
+    conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("SELECT id, name, surname, nickname, image, bio FROM students ORDER BY id")
         rows = cur.fetchall()
         
+        # Prevod dát na zoznam objektov
         students = []
         for row in rows:
             students.append({
-                "id": row[0], "name": row[1], "surname": row[2],
-                "nickname": row[3], "image": row[4], "bio": row[5]
+                "id": row[0],
+                "name": row[1],
+                "surname": row[2],
+                "nickname": row[3],
+                "image": row[4],
+                "bio": row[5]
             })
         
         cur.close()
-        conn.close()
-        return jsonify(students)
+        return jsonify(students) # Vracia priamo pole [{}, {}]
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
