@@ -40,7 +40,14 @@ def get_all_students():
                 "image": row[4],
                 "bio": row[5]
             })
-        
+
+        for i in range(len(students)):
+            for j in range(i + 1, len(students)):
+
+                if students[i]["name"] > students[j]["name"]:
+                    students[i], students[j] = students[j], students[i]
+
+
         cur.close()
         return jsonify(students) # Vracia priamo pole [{}, {}]
     except Exception as e:
@@ -51,3 +58,4 @@ def get_all_students():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
