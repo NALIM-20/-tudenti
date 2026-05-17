@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neon Student Dashboard | Live Data</title>
+
     <style>
-        /* CELKOVÝ ŠTÝL A ANIMOVANÉ POZADIE */
+
         body {
             margin: 0;
             padding: 20px;
@@ -27,10 +28,33 @@
             text-align: center;
             font-size: clamp(24px, 5vw, 42px);
             text-shadow: 0 0 10px #00f2ff, 0 0 20px #0066ff;
+            margin-bottom: 20px;
+        }
+
+        /* SELECT ZORADENIA */
+
+        .sort-container {
+            text-align: center;
             margin-bottom: 30px;
         }
 
-        /* KONTAJNER PRE KARTY */
+        #sort-select {
+            background: black;
+            color: #00f2ff;
+            border: 2px solid #00f2ff;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        #sort-select:hover {
+            box-shadow: 0 0 15px #00f2ff;
+        }
+
+        /* KARTY */
+
         #students-container {
             display: flex;
             flex-wrap: wrap;
@@ -38,7 +62,6 @@
             gap: 25px;
         }
 
-        /* ŠTÝL KARTY */
         .card {
             background: rgba(0, 0, 0, 0.8);
             border: 2px solid #00f2ff;
@@ -72,7 +95,8 @@
             margin: 5px 0;
         }
 
-        /* ŠTÝL PRE VYSKAKOVACIE OKNO (MODAL) */
+        /* MODAL */
+
         .modal {
             display: none;
             position: fixed;
@@ -101,7 +125,7 @@
         }
 
         .close-btn {
-            color: #fff;
+            color: white;
             position: absolute;
             top: 10px;
             right: 20px;
@@ -110,7 +134,9 @@
             cursor: pointer;
         }
 
-        .close-btn:hover { color: #ff00ff; }
+        .close-btn:hover {
+            color: #ff00ff;
+        }
 
         .modal-content img {
             width: 100%;
@@ -128,107 +154,223 @@
             font-size: 16px;
         }
 
-        .loading { text-align: center; font-size: 20px; }
+        .loading {
+            text-align: center;
+            font-size: 20px;
+        }
+
     </style>
 </head>
+
 <body>
 
     <h1>Student API</h1>
+
+    <!-- ZORADENIE -->
+
+    <div class="sort-container">
+        <select id="sort-select">
+            <option value="az">Meno A-Z</option>
+            <option value="za">Meno Z-A</option>
+        </select>
+    </div>
+
+    <!-- KARTY -->
 
     <div id="students-container">
         <p class="loading">Pripájanie k neónovej sieti na Renderi...</p>
     </div>
 
     <!-- MODAL -->
+
     <div id="myModal" class="modal">
+
         <div class="modal-content">
+
             <span class="close-btn">&times;</span>
+
             <img id="modal-img" src="" alt="foto">
+
             <h2 id="modal-name" style="margin: 10px 0; color: white;"></h2>
+
             <p class="nickname" id="modal-nick"></p>
+
             <div id="modal-desc"></div>
+
         </div>
+
     </div>
 
     <script>
+
         const container = document.getElementById("students-container");
+
         const modal = document.getElementById("myModal");
+
         const closeBtn = document.querySelector(".close-btn");
 
-        // !!! SEM DAJ SVOJU REÁLNU ADRESU Z RENDRA !!!
-        const API_URL = "https://tudenti.onrender.com/api"; 
+        const sortSelect = document.getElementById("sort-select");
+
+        // TVOJE API
+
+        const API_URL = "https://tudenti.onrender.com/api";
+
+        // ULOŽENÍ ŠTUDENTI
+
+        let allStudents = [];
+
+        // NAČÍTANIE ŠTUDENTOV
 
         async function loadStudents() {
+
             try {
+
                 const response = await fetch(API_URL);
-                
+
                 if (!response.ok) {
                     throw new Error(`Server vrátil chybu: ${response.status}`);
                 }
 
                 const data = await response.json();
-                console.log("Dáta prijaté:", data); // Kontrola v konzole (F12)
 
-                container.innerHTML = "";
+                console.log("Dáta prijaté:", data);
 
-                // Ošetrenie formátu dát (či je to pole alebo objekt)
                 let studentsArray = [];
+
                 if (Array.isArray(data)) {
+
                     studentsArray = data;
+
                 } else if (data && data.students) {
+
                     studentsArray = data.students;
+
                 } else {
-                    throw new Error("Dáta nie sú v správnom formáte (očakávalo sa pole).");
+
+                    throw new Error("Dáta nie sú v správnom formáte.");
+
                 }
 
                 if (studentsArray.length === 0) {
+
                     container.innerHTML = "<p>Databáza je momentálne prázdna.</p>";
+
                     return;
+
                 }
 
-                studentsArray.forEach(student => {
-                    const card = document.createElement("div");
-                    card.className = "card";
-                    card.innerHTML = `
-                        <img src="${student.image}" alt="foto">
-                        <h3>${student.name} ${student.surname}</h3>
-                        <p class="nickname">"${student.nickname}"</p>
-                    `;
-                    
-                    card.onclick = () => {
-                        document.getElementById("modal-img").src = student.image;
-                        document.getElementById("modal-name").innerText = `${student.name} ${student.surname}`;
-                        document.getElementById("modal-nick").innerText = `"${student.nickname}"`;
-                        document.getElementById("modal-desc").innerText = student.bio || "Žiadne bio.";
-                        
-                        modal.style.display = "block";
-                        document.body.style.overflow = "hidden";
-                    };
-                    
-                    container.appendChild(card);
-                });
+                allStudents = studentsArray;
+
+                renderStudents(allStudents);
 
             } catch (error) {
+
                 console.error("Chyba pri načítaní:", error);
-                container.innerHTML = `<p style="color:red; text-align:center;">Chyba: ${error.message}<br>Skontroluj, či ti beží backend na Renderi.</p>`;
+
+                container.innerHTML = `
+                    <p style="color:red; text-align:center;">
+                        Chyba: ${error.message}
+                    </p>
+                `;
             }
         }
 
-        // Zatváranie modalu
+        // VYKRESLENIE KARIET
+
+        function renderStudents(students) {
+
+            container.innerHTML = "";
+
+            students.forEach(student => {
+
+                const card = document.createElement("div");
+
+                card.className = "card";
+
+                card.innerHTML = `
+                    <img src="${student.image}" alt="foto">
+
+                    <h3>${student.name} ${student.surname}</h3>
+
+                    <p class="nickname">"${student.nickname}"</p>
+                `;
+
+                // OTVORENIE MODALU
+
+                card.onclick = () => {
+
+                    document.getElementById("modal-img").src = student.image;
+
+                    document.getElementById("modal-name").innerText =
+                        `${student.name} ${student.surname}`;
+
+                    document.getElementById("modal-nick").innerText =
+                        `"${student.nickname}"`;
+
+                    document.getElementById("modal-desc").innerText =
+                        student.bio || "Žiadne bio.";
+
+                    modal.style.display = "block";
+
+                    document.body.style.overflow = "hidden";
+                };
+
+                container.appendChild(card);
+
+            });
+        }
+
+        // ZORADENIE
+
+        sortSelect.addEventListener("change", () => {
+
+            let sortedStudents = [...allStudents];
+
+            if (sortSelect.value === "az") {
+
+                sortedStudents.sort((a, b) =>
+                    a.name.localeCompare(b.name)
+                );
+
+            } else {
+
+                sortedStudents.sort((a, b) =>
+                    b.name.localeCompare(a.name)
+                );
+
+            }
+
+            renderStudents(sortedStudents);
+
+        });
+
+        // ZATVORENIE MODALU
+
         closeBtn.onclick = () => {
+
             modal.style.display = "none";
+
             document.body.style.overflow = "auto";
+
         };
 
         window.onclick = (event) => {
+
             if (event.target == modal) {
+
                 modal.style.display = "none";
+
                 document.body.style.overflow = "auto";
+
             }
+
         };
 
-        // Spustenie načítania
+        // SPUSTENIE
+
         loadStudents();
+
     </script>
+
 </body>
 </html>

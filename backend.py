@@ -4,9 +4,11 @@ from flask_cors import CORS
 import psycopg2
 
 app = Flask(__name__)
-# DÔLEŽITÉ: CORS povolí tvojmu webu na GitHub Pages sťahovať dáta
+
+# Povolenie komunikácie frontend ↔ backend
 CORS(app)
 
+# Pripojenie k PostgreSQL databáze
 def get_db_connection():
     return psycopg2.connect(
         dbname="netusim_uz",
@@ -16,46 +18,65 @@ def get_db_connection():
         port=5432
     )
 
+# TEST ROUTA
 @app.route('/')
 def home():
-    return jsonify({"message": "Backend beží na Renderi!"})
+    return jsonify({
+        "message": "Backend beží na Renderi!"
+    })
 
+# API ROUTA
 @app.route('/api')
 def get_all_students():
+
     conn = None
+
     try:
+
         conn = get_db_connection()
+
         cur = conn.cursor()
-        cur.execute("SELECT id, name, surname, nickname, image, bio FROM students ORDER BY id")
+
+        # Načítanie študentov
+        cur.execute("""
+            SELECT id, name, surname, nickname, image, bio
+            FROM students
+        """)
+
         rows = cur.fetchall()
-        
-        # Prevod dát na zoznam objektov
+
         students = []
+
+        # Prevod SQL dát na JSON objekty
         for row in rows:
+
             students.append({
+
                 "id": row[0],
                 "name": row[1],
                 "surname": row[2],
                 "nickname": row[3],
                 "image": row[4],
                 "bio": row[5]
+
             })
 
-        for i in range(len(students)):
-            for j in range(i + 1, len(students)):
-
-                if students[i]["name"] > students[j]["name"]:
-                    students[i], students[j] = students[j], students[i]
-
-
         cur.close()
-        return jsonify(students) # Vracia priamo pole [{}, {}]
+
+        # Vracia JSON pole
+        return jsonify(students)
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
     finally:
+
         if conn:
             conn.close()
 
+# Spustenie Flask servera
 if __name__ == '__main__':
     app.run(debug=True)
-    
