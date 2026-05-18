@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psycopg2
 
@@ -8,7 +8,7 @@ app = Flask(__name__)
 # Povolenie komunikácie frontend ↔ backend
 CORS(app)
 
-# Pripojenie k PostgreSQL databáze
+# Pripojenie k PostgreSQL databáze (ponechané pôvodné údaje)
 def get_db_connection():
     return psycopg2.connect(
         dbname="netusim_uz",
@@ -25,55 +25,58 @@ def home():
         "message": "Backend beží na Renderi!"
     })
 
-# API ROUTA
+# API ROUTA SO SORTIARANÍM CEZ DATABÁZU
 @app.route('/api')
 def get_all_students():
 
     conn = None
 
     try:
+        # Prečítame z URL, ako chce frontend dáta zoradiť (predvolene 'az')
+        sort_order = request.args.get('sort', 'az')
 
         conn = get_db_connection()
-
         cur = conn.cursor()
 
-        # Načítanie študentov
-        cur.execute("""
+        # Základný SQL dopyt
+        query = """
             SELECT id, name, surname, nickname, image, bio
             FROM students
-        """)
+        """
 
+        # Podľa požiadavky pridáme SQL zoradenie (žiadny Python .sort())
+        if sort_order == "za":
+            query += " ORDER BY name DESC, surname DESC;"
+        else:
+            query += " ORDER BY name ASC, surname ASC;"
+
+        cur.execute(query)
         rows = cur.fetchall()
 
         students = []
 
         # Prevod SQL dát na JSON objekty
         for row in rows:
-
             students.append({
-
                 "id": row[0],
                 "name": row[1],
                 "surname": row[2],
                 "nickname": row[3],
                 "image": row[4],
                 "bio": row[5]
-
             })
 
         cur.close()
 
-        # Vracia JSON pole
+        # Vracia JSON pole zoradené priamo z DB
         return jsonify(students)
 
     except Exception as e:
-
         return jsonify({
             "error": str(e)
         }), 500
 
     finally:
-
         if conn:
             conn.close()
 
